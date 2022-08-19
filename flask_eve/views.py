@@ -33,7 +33,8 @@ def authorize():
 
 def callback():
     validate_request_state()
-    jwt = request_jwt()
+    code = request.args.get('code')
+    jwt = request_jwt(code)
     user = utils.user_from_jwt(jwt)
     user.save()
     response = make_response(redirect(url_for(current_app.config['EVE_LOGIN_REDIRECT_URL'])))
@@ -49,8 +50,15 @@ def validate_request_state():
         abort(400)
 
 
-def request_jwt():
-    code = request.args.get('code')
+def request_jwt(code: str):
+    url, data, headers = build_jwt_request(code)
+    sso_response = post(url=url, data=data, headers=headers)
+    sso_response.raise_for_status()
+    return sso_response.json()
+
+
+def build_jwt_request(code: str):
+    url = 'https://login.eveonline.com/v2/oauth/token'
     data = {
         'grant_type': 'authorization_code',
         'code': code
@@ -60,9 +68,7 @@ def request_jwt():
     headers = {
         'Authorization': f'Basic {encoded_auth_string}'
     }
-    sso_response = post(url='https://login.eveonline.com/v2/oauth/token', data=data, headers=headers)
-    sso_response.raise_for_status()
-    return sso_response.json()
+    return url, data, headers
 
 
 @authentication_required
