@@ -1,0 +1,6 @@
+EVE_CALLBACK_URL = 'http://127.0.0.1:5000/auth/callback'
+EVE_LOGIN_REDIRECT_URL = 'private.index'
+EVE_LOGOUT_REDIRECT_URL = 'public.index'
+EVE_SESSION_COOKIE_NAME = 'eve_session'
+EVE_STATE_COOKIE_NAME = 'eve_state'
+EVE_URL_PREFIX = '/auth'
