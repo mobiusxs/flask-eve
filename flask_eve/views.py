@@ -1,22 +1,17 @@
-from base64 import urlsafe_b64encode
-from secrets import token_urlsafe
-from urllib.parse import urlencode
+import base64
+import json
+import secrets
+import urllib.parse
+import urllib.request
 
-from flask import abort
-from flask import current_app
-from flask import make_response
-from flask import redirect
-from flask import request
-from flask import url_for
-from requests import post
+from flask import abort, current_app, make_response, redirect, request, url_for
 
-from flask_eve import models
-from flask_eve import utils
+from flask_eve import models, utils
 from flask_eve.decorators import authentication_required
 
 
 def authorize():
-    state = token_urlsafe(64)
+    state = secrets.token_urlsafe(64)
     data = {
         'response_type': 'code',
         'redirect_uri': current_app.config['EVE_CALLBACK_URL'],
@@ -24,7 +19,7 @@ def authorize():
         'scope': current_app.config['EVE_SCOPES'],
         'state': state
     }
-    location = f'https://login.eveonline.com/v2/oauth/authorize/?{urlencode(data)}'
+    location = f'https://login.eveonline.com/v2/oauth/authorize/?{urllib.parse.urlencode(data)}'
     response = make_response(redirect(location=location, code=302))
     response.set_cookie(current_app.config['EVE_STATE_COOKIE_NAME'], state)
     response.set_cookie(current_app.config['EVE_SESSION_COOKIE_NAME'], '', expires=0)
@@ -32,29 +27,16 @@ def authorize():
 
 
 def callback():
-    validate_request_state()
+    utils.validate_request_state()
     code = request.args.get('code')
-    jwt = request_jwt(code)
+    url, data, headers = build_jwt_request(code)
+    jwt = utils.request_jwt(url, data, headers)
     user = utils.user_from_jwt(jwt)
     user.save()
     response = make_response(redirect(url_for(current_app.config['EVE_LOGIN_REDIRECT_URL'])))
     response.set_cookie(current_app.config['EVE_STATE_COOKIE_NAME'], '', expires=0)
     response.set_cookie(current_app.config['EVE_SESSION_COOKIE_NAME'], user.session_id)
     return response
-
-
-def validate_request_state():
-    returned_state = request.args.get('state')
-    sent_state = request.cookies.get(current_app.config['EVE_STATE_COOKIE_NAME'])
-    if returned_state != sent_state:
-        abort(400)
-
-
-def request_jwt(code: str):
-    url, data, headers = build_jwt_request(code)
-    sso_response = post(url=url, data=data, headers=headers)
-    sso_response.raise_for_status()
-    return sso_response.json()
 
 
 def build_jwt_request(code: str):
@@ -64,7 +46,7 @@ def build_jwt_request(code: str):
         'code': code
     }
     auth_string = f"{current_app.config['EVE_CLIENT_ID']}:{current_app.config['EVE_SECRET_KEY']}".encode('utf-8')
-    encoded_auth_string = urlsafe_b64encode(auth_string).decode()
+    encoded_auth_string = base64.urlsafe_b64encode(auth_string).decode()
     headers = {
         'Authorization': f'Basic {encoded_auth_string}'
     }
