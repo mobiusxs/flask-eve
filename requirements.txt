@@ -1,5 +1,4 @@
 flask
 sqlalchemy
-requests
 pytest
 flake8
