@@ -12,10 +12,11 @@ class Eve:
 
     def init_app(self, app, db=None):
         app.extensions['eve'] = self
-        sqlalchemy = app.extensions.get('sqlalchemy', db)
-        if not sqlalchemy:
-            raise ValueError("Flask-SQLAlchemy instance not found")
-        db = sqlalchemy.db
+        if not db:
+            sqlalchemy = app.extensions.get('sqlalchemy')
+            if not sqlalchemy:
+                raise ValueError("Flask-SQLAlchemy instance required")
+            db = sqlalchemy.db
         self.init_models(db)
         self.init_views(app)
         self.init_context(app)
