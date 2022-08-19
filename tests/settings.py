@@ -1,0 +1,7 @@
+TESTING = True
+SQLALCHEMY_DATABASE_URI = 'sqlite://'
+SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+EVE_CLIENT_ID = 'client_id'
+EVE_SECRET_KEY = 'secret_key'
+EVE_SCOPES = 'scopes'
