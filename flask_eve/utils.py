@@ -1,10 +1,11 @@
-from base64 import b64decode
-from json import loads
-from secrets import token_urlsafe
-from time import time
+import base64
+import json
+import secrets
+import time
+import urllib.parse
+import urllib.request
 
-from flask import current_app
-from flask import request
+from flask import abort, current_app, request
 
 from flask_eve import models
 
@@ -38,10 +39,10 @@ def get_user():
 
 
 def user_from_jwt(jwt, session_id: str = None):
-    session_id = session_id or token_urlsafe(64)
+    session_id = session_id or secrets.token_urlsafe(64)
     name, character_id = parse_access_token(jwt['access_token'])
     user = models.User(
-        expires_at=int(time()) + jwt['expires_in'],
+        expires_at=int(time.time()) + jwt['expires_in'],
         token_type=jwt['token_type'],
         refresh_token=jwt['refresh_token'],
         access_token=jwt['access_token'],
@@ -54,8 +55,28 @@ def user_from_jwt(jwt, session_id: str = None):
 
 def parse_access_token(access_token):
     header, payload, signature = access_token.split('.')
-    payload = b64decode(payload + '==')
-    payload = loads(payload)
+    payload = base64.b64decode(payload + '==')
+    payload = json.loads(payload)
     character_name = payload['name']
     character_id = payload['sub'].split(':')[2]
     return character_name, character_id
+
+
+def request_jwt(url, data, headers):
+    r = urllib.request.Request(
+        url=url,
+        data=urllib.parse.urlencode(data).encode(),
+        headers=headers,
+        method='POST'
+    )
+    response = urllib.request.urlopen(r)
+    content = json.loads(response.read())
+    response.close()
+    return content
+
+
+def validate_request_state():
+    returned_state = request.args.get('state')
+    sent_state = request.cookies.get(current_app.config['EVE_STATE_COOKIE_NAME'])
+    if returned_state != sent_state:
+        abort(400)
